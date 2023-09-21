@@ -4,8 +4,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
-#define MAX_INPUT_LENGTH 100
+#include <errno.h>
+#include "main.h"
 
 /**
  * display_prompt - is defined to print a simple shell prompt
@@ -14,6 +14,7 @@
 void display_prompt(void)
 {
 	printf("$ ");
+	fflush(stdout);
 }
 /**
  * remove_newline - remove the trailing newline character
@@ -23,7 +24,7 @@ void display_prompt(void)
  */
 void remove_newline(char *str)
 {
-	str[strlen(str) - 1] = '\0';
+	str[strcspn(str, "\n")] = '\0';
 }
 /**
  * tokenize_input - takes a user input string
@@ -46,6 +47,30 @@ int tokenize_input(char *input, char **args)
 	return (arg_count);
 }
 /**
+ * check_command_exists - checks if a command exists in the PATH
+ *
+ * @command: the command to check
+ * Return: 1 if the command exists, 0 otherwise
+ */
+int check_command_exists(char *command)
+{
+	char *path = getenv("PATH");
+	char *token = strtok(path, ":");
+
+	while (token != NULL)
+	{
+		char full_path[MAX_INPUT_LENGTH];
+
+		snprintf(full_path, sizeof(full_path), "%s/%s", token, command);
+			if (access(full_path, F_OK) == 0)
+			{
+				return (1);
+			}
+			token = strtok(NULL, ":");
+	}
+	return (0);
+}
+/**
  * execute_command - represents the list of command arguments to execute
  *
  * @args: pointers array of character
@@ -59,6 +84,11 @@ void execute_command(char **args)
 	{
 		printf("Goodbye!\n");
 		exit(0);
+	}
+	if (!check_command_exists(args[0]))
+	{
+		fprintf(stderr, "simple_shell: %s: command not found\n", args[0]);
+		return;
 	}
 	pid = fork();
 
@@ -79,37 +109,3 @@ void execute_command(char **args)
 		wait(NULL);
 	}
 }
-/**
- * main - entry point of the program
- *
- * Return: 0
- */
-int main(void)
-{
-	char input[MAX_INPUT_LENGTH];
-	char *args[MAX_INPUT_LENGTH / 2];
-	int arg_count;
-
-	while (1)
-	{
-		display_prompt();
-		if (fgets(input, sizeof(input), stdin) == NULL)
-		{
-			printf("\nGoodbye!\n");
-			break;
-		}
-		remove_newline(input);
-		if (strlen(input) == 0)
-		{
-			continue;
-		}
-		arg_count = tokenize_input(input, args);
-
-		if (arg_count > 0)
-		{
-			execute_command(args);
-		}
-	}
-	return (0);
-}
-
