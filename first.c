@@ -2,55 +2,76 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/wait.h>
+#include <errno.h>
+
+#define MAX_INPUT 1024
+
+int is_simple_command(const char *input)
+{
+	size_t len = strlen(input);
+	size_t i;
+
+	for (i = 0; i < len; i++)
+	{
+		if (input[i] == ' ' || input[i] == ';' || input[i] == '|' || input[i] == '>' || input[i] == '<')
+		{
+			return (0);
+		}
+	}
+	return (1);
+}
 
 int main(void)
 {
-	char command[256];
-	char prompt[] = "MyShell> ";
+	char buffer[MAX_INPUT];
+	size_t length;
 	pid_t pid;
 	int status;
 
 	while (1)
 	{
-		printf("%s", prompt);
-		if (fgets(command, sizeof(command), stdin) == NULL)
+		printf("$ ");
+		fflush(stdout);
+
+		if (fgets(buffer, sizeof(buffer), stdin) == NULL)
 		{
-			if (feof(stdin))
-			{
-				printf("\n");
-				break;
-			}
-			else
-			{
-				perror("Error reading input");
-				exit(1);
-			}
+			printf("\n");
+			break;
 		}
-		command[strcspn(command, "\n")] = '\0';
+		length = strlen(buffer);
+
+		if (length > 0 && buffer[length - 1] == '\n')
+			buffer[length - 1] = '\0';
+		if (!is_simple_command(buffer))
+		{
+			printf("Unsupported command: %s\n", buffer);
+			continue;
+		}
 		pid = fork();
 
 		if (pid == -1)
 		{
-			perror("Fork error");
-			exit(1);
+			perror("fork");
+			exit(EXIT_FAILURE);
 		}
-		else if (pid == 0)
+		if (pid == 0)
 		{
-			if (execlp(command, command, (char *)NULL) == -1)
-			{
-				perror("Command not found");
-				exit(1);
-			}
-		} else
+			execlp(buffer, buffer, NULL);
+			fprintf(stderr, "Error: %s: %s\n", buffer, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		else
 		{
 			waitpid(pid, &status, 0);
-
 			if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
 			{
-				fprintf(stderr, "Command exited with non-zero status\n");
+				printf("Command not found: %s\n", buffer);
 			}
 		}
 	}
-	return (0);
+
+    return (0);
 }
+
