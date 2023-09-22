@@ -8,6 +8,7 @@ void remove_newline(char *str);
 int tokenize_input(char *input, char **args);
 int check_command_exists(char *command);
 void execute_command(char **args);
+void handle_exit(char **args);
 
 #endif
 
