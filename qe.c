@@ -35,13 +35,18 @@ void remove_newline(char *str)
  */
 int tokenize_input(char *input, char **args)
 {
-	char *token = strtok(input, " ");
 	int arg_count = 0;
+	char *token = input;
 
-	while (token != NULL)
+	while (*input != '\0')
 	{
-		args[arg_count++] = token;
-		token = strtok(NULL, " ");
+		if (*input == ' ' || *input == '\t' || *input == '\n')
+		{
+			*input = '\0';
+			args[arg_count++] = token;
+			token = input + 1;
+		}
+		input++;
 	}
 	args[arg_count] = NULL;
 	return (arg_count);
